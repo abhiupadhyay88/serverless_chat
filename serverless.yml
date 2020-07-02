@@ -1,0 +1,126 @@
+service: chat # NOTE: update this with your service name
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+
+provider:
+  name: aws
+  runtime: python3.7
+  region: us-east-1
+  iamRoleStatements: # permissions for all of your functions can be set here
+    - Effect: Allow
+      Action: # Gives permission to DynamoDB tables in a specific region
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:us-east-1:*:*"
+
+
+
+functions:
+  connect:
+    handler: handler # required, handler set in AWS Lambda
+    events:
+      - websocket:
+          route: $connect
+
+  disconnect:
+    handler: handler # required, handler set in AWS Lambda
+    events:
+      - websocket:
+          route: $disconnect
+
+  broadcast_chat:
+    handler: handler # required, handler set in AWS Lambda
+    events:
+      - sqs: arn:aws:sqs:us-east-1:581010750309:chat_message
+  receive:
+    handler: handler # required, handler set in AWS Lambda
+    events:
+      - websocket:
+          route: $default
+
+Resources:
+  chat:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: chat
+      AttributeDefinitions:
+        - AttributeName: chatroom_id
+          AttributeType: S
+        - AttributeName: received_timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: chatroom_id
+          KeyType: HASH
+        - AttributeName: received_timestamp
+          KeyType: SORT
+
+  chat_sent:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: chat_sent
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: sent_timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: sent_timestamp
+          KeyType: SORT
+
+  unsent_chat:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: unsent_chat
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: receive_timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: receive_timestamp
+          KeyType: SORT
+
+  chatroom_users:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: chatroom_users
+      AttributeDefinitions:
+        - AttributeName: chatroom_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: chatroom_id
+          KeyType: HASH
+
+  websocket_user_mapping:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: websocket_user_mapping
+      AttributeDefinitions:
+        - AttriwbuteName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+
+  reverse_user_websocket_mapping:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: reverse_user_websocket_mapping
+      AttributeDefinitions:
+        - AttriwbuteName: websocket_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: websocket_id
+          KeyType: HASH
+
